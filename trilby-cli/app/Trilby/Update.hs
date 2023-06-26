@@ -10,9 +10,9 @@ import Prelude
 
 getOpts :: UpdateOpts Maybe -> UpdateOpts Sh
 getOpts opts = do
-    let switch = maybe (ask "Switch to configuration?" True) pure opts.switch
-    let boot = maybe (ask "Apply the configuration at boot?" False) pure opts.switch
-    let reboot = maybe (ask "Reboot to configuration?" False) pure opts.switch
+    let switch = maybe (ask "Switch to configuration? (sudo)" True) pure opts.switch
+    let boot = maybe (ask "Apply the configuration at boot? (sudo)" False) pure opts.boot
+    let reboot = maybe (ask "Reboot to configuration? (sudo)" False) pure opts.reboot
     UpdateOpts{..}
 
 update :: UpdateOpts Maybe -> IO ()

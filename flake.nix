@@ -95,7 +95,6 @@
             default = pkgs.mkShell {
               packages = with pkgs; [ nixpkgs-fmt ];
             };
-            trilby-cli = pkgs.trilby-cli.shell;
           };
           packages.${buildPlatform} = pkgs;
         }

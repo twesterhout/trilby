@@ -4,7 +4,6 @@ self: super:
 let
   inherit (super) lib;
   pname = "trilby-cli";
-  ghc = "ghc96";
   src = inputs.nix-filter.lib {
     root = ../../trilby-cli;
     include = [
@@ -17,7 +16,7 @@ let
     ];
   };
 in
-rec {
+{
   haskell = super.haskell // {
     packageOverrides = lib.composeExtensions super.haskell.packageOverrides (hself: hsuper:
       with super.haskell.lib;
@@ -44,6 +43,6 @@ rec {
       })
     );
   };
-  trilby-cli = haskell.packages.${ghc}.trilby-cli;
-  trilby-cli-static = self.pkgsStatic.haskell.packages.native-bignum.${ghc}.trilby-cli;
+  trilby-cli = self.haskellPackages.trilby-cli;
+  trilby-cli-static = self.pkgsStatic.haskellPackages.native-bignum.trilby-cli;
 }
