@@ -5,7 +5,7 @@ import Data.Text qualified as Text
 import Data.Text.IO qualified as Text
 import Shelly
 import System.Console.ANSI
-import System.IO (stderr, hFlush, stdout)
+import System.IO (hFlush, stderr, stdout)
 import Prelude hiding (error)
 
 error :: Text -> IO ()
@@ -32,9 +32,10 @@ peval f = print_commands True . print_commands_with f
 ask :: String -> Bool -> Sh Bool
 ask question defaultValue = do
     answer <- liftIO do
-        putStr $ question <> case defaultValue of
-            True -> " [Y/n] "
-            False -> " [y/N] "
+        putStr $
+            question <> case defaultValue of
+                True -> " [Y/n] "
+                False -> " [y/N] "
         hFlush stdout
         getLine
     case answer of

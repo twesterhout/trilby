@@ -109,20 +109,21 @@ install (getOpts -> opts) = shelly do
     cd $ Text.unpack dir
     host <- opts.host
     username <- opts.username
+    edition <- opts.edition
     cmd "mkdir" "-p" ("hosts/" <> host) ("users/" <> username)
     let substitute =
             applySubstitutions
                 [ ("$hostname", host)
                 , ("$username", username)
-                , ("$edition", "workstation")
-                , ("$channel", "23.05")
+                , ("$edition", tshow edition)
+                , ("$channel", "unstable")
                 ]
-    liftIO $ do
+    liftIO do
         Text.writeFile (Text.unpack (dir <> "/flake.nix")) $
             substitute flakeTemplate
-        Text.writeFile (Text.unpack (dir <> "/hosts/" <> host <> "/host.nix")) $
+        Text.writeFile (Text.unpack (dir <> "/hosts/" <> host <> "/default.nix")) $
             substitute hostTemplate
-        Text.writeFile (Text.unpack (dir <> "/users/" <> username <> "/user.nix")) $
+        Text.writeFile (Text.unpack (dir <> "/users/" <> username <> "/default.nix")) $
             substitute userTemplate
 
 doFormat :: InstallOpts Sh -> Sh ()
