@@ -4,14 +4,15 @@
 
 module Trilby.Install where
 
-import Control.Monad ((<=<))
+import Control.Monad
 import Data.List qualified
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.IO qualified as Text
 import Language.Haskell.TH qualified as TH
 import Shelly
-import System.Posix (getFileStatus, isBlockDevice)
+import System.Environment (getArgs, getExecutablePath)
+import System.Posix (executeFile, getEffectiveUserID, getFileStatus, isBlockDevice)
 import Trilby.Config (Edition (..))
 import Trilby.Options
 import Trilby.Util
@@ -99,14 +100,20 @@ applySubstitutions subs str =
 
 install :: InstallOpts Maybe -> IO ()
 install (getOpts -> opts) = shelly do
+    unlessM ((0 ==) <$> liftIO getEffectiveUserID) do
+        whenM (ask "The installer requires root permissions. Elevate to root? (sudo)" True) $ liftIO do
+            exe <- getExecutablePath
+            args <- getArgs
+            executeFile "sudo" True (exe : args) Nothing
+    unlessM ((0 ==) <$> liftIO getEffectiveUserID) do
+        (errorExit "Trilby installation cannot proceed without root")
     whenM opts.format $ doFormat opts
     rootIsMounted <- do
         errExit False $ cmd "mountpoint" "-q" rootMount
         (0 ==) <$> lastExitCode
     unless rootIsMounted $ errorExit "/mnt is not a mountpoint"
-    let dir = rootMount <> "/etc/trilby"
-    cmd "mkdir" "-p" dir
-    cd $ Text.unpack dir
+    cmd "mkdir" "-p" trilbyDir
+    cd $ Text.unpack trilbyDir
     host <- opts.host
     username <- opts.username
     edition <- opts.edition
@@ -119,12 +126,17 @@ install (getOpts -> opts) = shelly do
                 , ("$channel", "unstable")
                 ]
     liftIO do
-        Text.writeFile (Text.unpack (dir <> "/flake.nix")) $
+        Text.writeFile (Text.unpack (trilbyDir <> "/flake.nix")) $
             substitute flakeTemplate
-        Text.writeFile (Text.unpack (dir <> "/hosts/" <> host <> "/default.nix")) $
+        Text.writeFile (Text.unpack (trilbyDir <> "/hosts/" <> host <> "/default.nix")) $
             substitute hostTemplate
-        Text.writeFile (Text.unpack (dir <> "/users/" <> username <> "/default.nix")) $
+        Text.writeFile (Text.unpack (trilbyDir <> "/users/" <> username <> "/default.nix")) $
             substitute userTemplate
+    let hardwareConfig = Text.unpack (trilbyDir <> "/hosts/" <> host <> "/hardware.nix")
+    cmd "nixos-generate-config" "--show-hardware-config" "--root" rootMount
+        >>= Shelly.writefile hardwareConfig
+    cmd "nixos-install" "--flake" (trilbyDir <> "#" <> host) "--no-root-password"
+    whenM opts.reboot $ cmd "reboot"
 
 doFormat :: InstallOpts Sh -> Sh ()
 doFormat opts = do
@@ -132,11 +144,11 @@ doFormat opts = do
     cmd "sgdisk" "--zap-all" "-o" disk
     efi <- opts.efi
     when efi do
-        cmd "sgdisk" "-n" "0:0:+1G" "-t" "0:EF00" "-c" ("0:" <> efiLabel) disk
-    let rootPartNum = if efi then 1 else 0
+        cmd "sgdisk" "-n" "1:0:+1G" "-t" "1:EF00" "-c" ("1:" <> efiLabel) disk
     luks <- opts.luks
+    let rootPartNum = if efi then 2 else 1
     let rootLabel = if luks then luksLabel else trilbyLabel
-    cmd "sgdisk" "-n" (tshow rootPartNum <> ":0:+1G") "-t" (tshow rootPartNum <> ":8300") "-c" (tshow rootPartNum <> ":" <> rootLabel) disk
+    cmd "sgdisk" "-n" (tshow rootPartNum <> ":0:0") "-t" (tshow rootPartNum <> ":8300") "-c" (tshow rootPartNum <> ":" <> rootLabel) disk
     cmd "partprobe"
     when efi do
         cmd "mkfs.fat" "-F32" "-n" efiLabel efiDevice

@@ -1,5 +1,6 @@
 module Trilby.Util where
 
+import Control.Monad.IO.Class (MonadIO)
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.IO qualified as Text
@@ -8,20 +9,20 @@ import System.Console.ANSI
 import System.IO (hFlush, stderr, stdout)
 import Prelude hiding (error)
 
-error :: Text -> IO ()
-error t = do
+error :: MonadIO m => Text -> m ()
+error t = liftIO do
     hSetSGR stderr [SetColor Foreground Dull Red]
     Text.hPutStrLn stderr t
     hSetSGR stderr [Reset]
 
-warn :: Text -> IO ()
-warn t = do
+warn :: MonadIO m => Text -> m ()
+warn t = liftIO do
     hSetSGR stderr [SetColor Foreground Dull Yellow]
     Text.hPutStrLn stderr t
     hSetSGR stderr [Reset]
 
-info :: Text -> IO ()
-info t = do
+info :: MonadIO m => Text -> m ()
+info t = liftIO do
     hSetSGR stderr [SetColor Foreground Dull White]
     Text.hPutStrLn stderr t
     hSetSGR stderr [Reset]
